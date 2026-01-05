@@ -15,8 +15,6 @@ sys.path.append(os.path.join(base_dir, "src"))
 # CRITICAL FIX: Add 'src/protos' to path so the generated code works
 sys.path.append(os.path.join(base_dir, "src", "protos"))
 
-# --- IMPORTS ---
-# Now we can import these directly because 'src/protos' is in the path
 import wallet_pb2 as wallet_pb2
 import wallet_pb2_grpc as wallet_pb2_grpc
 
@@ -24,6 +22,7 @@ from src.core.raft_node import RaftNode
 from src.core.state_machine import WalletStateMachine
 from src.infrastructure.service_handlers import WalletServiceHandler
 from src.utils.logger import get_logger
+from src.infrastructure.service_handlers import ConsensusServiceHandler
 
 # ... rest of the code stays exactly the same ...
 def load_config(node_id):
@@ -83,8 +82,6 @@ def serve():
     wallet_service = WalletServiceHandler(raft_node)
     wallet_pb2_grpc.add_WalletServiceServicer_to_server(wallet_service, server)
     
-    # --- ADD THIS BLOCK ---
-    from src.infrastructure.service_handlers import ConsensusServiceHandler
     consensus_service = ConsensusServiceHandler(raft_node)
     wallet_pb2_grpc.add_ConsensusServiceServicer_to_server(consensus_service, server)
     # ----------------------

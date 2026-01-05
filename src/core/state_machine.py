@@ -1,34 +1,74 @@
+import threading
+
 class WalletStateMachine:
     def __init__(self):
         # The database: { account_id (int): balance (float) }
         self.accounts = {}
+        self.lock = threading.Lock()
         
     def get_balance(self, account_id):
-        return self.accounts.get(account_id, 0.0)
+        """
+        Safely gets the balance, ensuring the ID is an integer.
+        """
+        with self.lock:
+            try:
+                # Ensure we look up using an int, matching how we store it
+                acc_id_int = int(account_id)
+                return self.accounts.get(acc_id_int, 0.0)
+            except ValueError:
+                return 0.0
 
     def apply_log(self, command):
         """
         Executes a command committed by Raft.
-        Format: "OP ARG1 ARG2"
-        Example: "DEPOSIT 101 50.0"
+        Handles both STRING commands (Simple) and DICT commands (Complex).
         """
-        parts = command.split()
-        op = parts[0]
-        
-        if op == "CREATE":
-            acc_id = int(parts[1])
-            if acc_id in self.accounts:
-                return False, "Account already exists"
-            self.accounts[acc_id] = 0.0
-            return True, "Account created"
-            
-        elif op == "DEPOSIT":
-            acc_id = int(parts[1])
-            amount = float(parts[2])
-            if acc_id not in self.accounts:
-                return False, "Account does not exist"
-            self.accounts[acc_id] += amount
-            return True, f"Deposited {amount}"
-            
-        # We will add TRANSFER logic here later
-        return False, "Unknown Command"
+        with self.lock:
+            try:
+                # --- CASE 1: Simple String Command (e.g., "CREATE 10") ---
+                if isinstance(command, str):
+                    parts = command.split()
+                    op = parts[0]
+                    
+                    if op == "CREATE":
+                        acc_id = int(parts[1])
+                        if acc_id in self.accounts:
+                            return False, "Account already exists"
+                        self.accounts[acc_id] = 0.0
+                        return True, "Account created"
+                    
+                    elif op == "DEPOSIT":
+                        acc_id = int(parts[1])
+                        amount = float(parts[2])
+                        if acc_id not in self.accounts:
+                            return False, "Account does not exist"
+                        self.accounts[acc_id] += amount
+                        return True, f"Deposited {amount}"
+
+                # --- CASE 2: Dictionary Command (e.g., Transactions) ---
+                elif isinstance(command, dict):
+                    # This handles the logic from WalletServiceHandler.ExecuteTransaction
+                    op_type = command.get("type")
+                    if op_type == "TRANSACTION":
+                        user_id = int(command["user_id"])
+                        amount = float(command["amount"])
+                        operation = command["op"]
+                        
+                        if user_id not in self.accounts:
+                            return False, "User does not exist"
+                        
+                        if operation == "DEPOSIT":
+                            self.accounts[user_id] += amount
+                            return True, f"Deposited {amount}"
+                        elif operation == "WITHDRAW":
+                            if self.accounts[user_id] >= amount:
+                                self.accounts[user_id] -= amount
+                                return True, f"Withdrew {amount}"
+                            else:
+                                return False, "Insufficient funds"
+
+                return False, "Unknown Command Format"
+                
+            except Exception as e:
+                print(f"State Machine Error: {e}")
+                return False, f"Execution Error: {str(e)}"

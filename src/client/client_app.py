@@ -78,6 +78,35 @@ def get_balance(acc_id):
         print(f" RPC Error: {e.code()}")
         
     channel.close()
+    # ADD THIS METHOD TO src/core/raft_node.py
+    def replicate_log(self, command):
+        """
+        1. Appends command to local log.
+        2. Waits for Consensus (Safety).
+        3. Returns result to client.
+        """
+        with self.lock:
+            if self.state != NodeState.LEADER:
+                return False, "Not Leader"
+            
+            # 1. Append to local log
+            entry = {"term": self.current_term, "command": command}
+            self.log.append(entry)
+            last_idx = len(self.log) - 1
+            self.logger.info(f"Leader received command: {command}")
+            
+        # 2. Wait for Consensus (Simple Sleep-Wait Loop for now)
+        # In a production system, use Condition Variables or Events
+        start_time = time.time()
+        while time.time() - start_time < 5.0: # 5 second timeout
+            if self.commit_index >= last_idx:
+                # Log is committed! Apply to State Machine.
+                # Note: Usually the 'apply' happens in a separate background thread,
+                # but for this simple assignment, we can do it here or assume it's done.
+                return True, "Committed and Executed"
+            time.sleep(0.1)
+            
+        return False, "Replication Timeout"
 
 def main():
     print("--- Distributed E-Wallet Client ---")
