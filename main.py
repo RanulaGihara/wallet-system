@@ -3,21 +3,21 @@ import time
 import json
 import os
 import grpc
+from concurrent import futures
+
+# --- PATH CONFIGURATION ---
+base_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(base_dir, "src"))
+sys.path.append(os.path.join(base_dir, "src", "protos"))
+
 import wallet_pb2 as wallet_pb2
 import wallet_pb2_grpc as wallet_pb2_grpc
 
-from concurrent import futures
 from src.core.raft_node import RaftNode
 from src.core.state_machine import WalletStateMachine
 from src.infrastructure.service_handlers import WalletServiceHandler
 from src.utils.logger import get_logger
 from src.infrastructure.service_handlers import ConsensusServiceHandler
-
-# --- PATH CONFIGURATION ---
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(base_dir, "src"))
-sys.path.append(os.path.join(base_dir, "src", "protos"))
 
 def load_config(node_id):
     """Reads topology.json to find my IP and Peers."""
@@ -64,7 +64,7 @@ def serve():
 
     state_machine = WalletStateMachine()
     raft_node = RaftNode(node_id, config['shard_id'], config['peers'], state_machine)
-    
+
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
     wallet_service = WalletServiceHandler(raft_node)
@@ -72,7 +72,7 @@ def serve():
     
     consensus_service = ConsensusServiceHandler(raft_node)
     wallet_pb2_grpc.add_ConsensusServiceServicer_to_server(consensus_service, server)
-   
+
     server.add_insecure_port(f"{config['host']}:{config['port']}")
     server.start()
     

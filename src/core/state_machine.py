@@ -2,6 +2,7 @@ import threading
 
 class WalletStateMachine:
     def __init__(self):
+        # In-memory database: {account_id (int): balance (float)}
         self.accounts = {}
         self.lock = threading.Lock()
         
@@ -18,90 +19,72 @@ class WalletStateMachine:
 
     def apply_log(self, command):
         """
-        Executes a command.
+        Executes a command 
         """
         with self.lock:
             try:
+                if not isinstance(command, str):
+                    command = str(command)
+
                 parts = command.split()
-                op = parts[0]
+                if not parts:
+                    return False, "Empty Command"
+
+                op_type = parts[0]
                 
-                if op == "CREATE":
+               
+                if op_type == "CREATE":
                     acc_id = int(parts[1])
                     if acc_id in self.accounts:
                         return False, "Account already exists"
                     self.accounts[acc_id] = 0.0
                     return True, "Account created"
                 
-                elif op == "TRANSACTION":
+                
+                elif op_type == "TRANSACTION":
+
                     user_id = int(parts[1])
                     amount = float(parts[2])
                     operation = parts[3]
                     
                     if user_id not in self.accounts:
-                        return False, "User does not exist"
+                        return False, f"User {user_id} does not exist"
                     
+                   
                     if operation == "DEPOSIT":
                         self.accounts[user_id] += amount
                         return True, f"Deposited {amount}"
                     
+                    # -> WITHDRAW
                     elif operation == "WITHDRAW":
                         if self.accounts[user_id] >= amount:
                             self.accounts[user_id] -= amount
                             return True, f"Withdrew {amount}"
                         else:
                             return False, "Insufficient funds"
+                            
+                  
+                    elif operation == "TRANSFER":
+                        
+                        if len(parts) < 5:
+                            return False, "Missing receiver ID for transfer"
+                            
+                        to_id = int(parts[4])
+                        
+                        if to_id not in self.accounts:
+                            return False, f"Receiver {to_id} does not exist"
+                        
+                       
+                        if self.accounts[user_id] >= amount:
+                            self.accounts[user_id] -= amount
+                            self.accounts[to_id] += amount
+                            return True, f"Transferred {amount} from {user_id} to {to_id}"
+                        else:
+                            return False, "Insufficient funds for transfer"
 
                 return False, "Unknown Command"
                 
             except Exception as e:
-                return False, f"Execution Error: {str(e)}"
-        """
-        Executes a command committed by Raft.
-        Handles both STRING commands (Simple) and DICT commands (Complex).
-        """
-        with self.lock:
-            try:
-                if isinstance(command, str):
-                    parts = command.split()
-                    op = parts[0]
-                    
-                    if op == "CREATE":
-                        acc_id = int(parts[1])
-                        if acc_id in self.accounts:
-                            return False, "Account already exists"
-                        self.accounts[acc_id] = 0.0
-                        return True, "Account created"
-                    
-                    elif op == "DEPOSIT":
-                        acc_id = int(parts[1])
-                        amount = float(parts[2])
-                        if acc_id not in self.accounts:
-                            return False, "Account does not exist"
-                        self.accounts[acc_id] += amount
-                        return True, f"Deposited {amount}"
-
-                elif isinstance(command, dict):
-                    op_type = command.get("type")
-                    if op_type == "TRANSACTION":
-                        user_id = int(command["user_id"])
-                        amount = float(command["amount"])
-                        operation = command["op"]
-                        
-                        if user_id not in self.accounts:
-                            return False, "User does not exist"
-                        
-                        if operation == "DEPOSIT":
-                            self.accounts[user_id] += amount
-                            return True, f"Deposited {amount}"
-                        elif operation == "WITHDRAW":
-                            if self.accounts[user_id] >= amount:
-                                self.accounts[user_id] -= amount
-                                return True, f"Withdrew {amount}"
-                            else:
-                                return False, "Insufficient funds"
-
-                return False, "Unknown Command Format"
-                
-            except Exception as e:
+               
                 print(f"State Machine Error: {e}")
                 return False, f"Execution Error: {str(e)}"

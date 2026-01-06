@@ -8,7 +8,7 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
 
     def CreateAccount(self, request, context):
         """
-        Now correctly calls replicate_log which exists in RaftNode.
+        Creates a new account via Raft Consensus.
         """
         command = f"CREATE {request.account_id}"
         
@@ -17,7 +17,9 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
         return wallet_pb2.AccountResponse(success=success, message=str(msg))
 
     def GetBalance(self, request, context):
-       
+        """
+        Queries balance. Currently allows reads from Followers (Eventual Consistency).
+        """
         if str(self.raft_node.state.name) != "LEADER":
             pass 
 
@@ -31,9 +33,15 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
 
     def ExecuteTransaction(self, request, context):
         """
-        Handles Deposit and Withdraw commands.
+        Handles DEPOSIT, WITHDRAW, and TRANSFER commands.
         """
-        command = f"TRANSACTION {request.account_id} {request.amount} {request.op}"
+
+        if request.op == "TRANSFER":
+           
+            command = f"TRANSACTION {request.account_id} {request.amount} {request.op} {request.to_account}"
+        else:
+           
+            command = f"TRANSACTION {request.account_id} {request.amount} {request.op}"
         
         # Replicate to Raft Log
         success, msg = self.raft_node.replicate_log(command)

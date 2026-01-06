@@ -1,11 +1,13 @@
 import grpc
 import sys
 import os
-import wallet_pb2
-import wallet_pb2_grpc
 
+# Fix path to import protos
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src/protos'))
+
+import wallet_pb2
+import wallet_pb2_grpc
 
 # --- PARTITION RESOLUTION CONFIG ---
 SHARD_0_NODES = ["localhost:50051", "localhost:50052", "localhost:50053"]
@@ -38,7 +40,6 @@ def create_account(acc_id):
                 channel.close()
                 return
             elif "Not Leader" in response.message:
-                # Connected to a Follower, try next node
                 channel.close()
                 continue
             else:
@@ -47,7 +48,6 @@ def create_account(acc_id):
                 return
 
         except grpc.RpcError:
-            # Node is down, try next one
             channel.close()
             continue
             
@@ -77,7 +77,6 @@ def get_balance(acc_id):
                 return 
                 
         except grpc.RpcError:
-            # Node is down, try next one
             channel.close()
             continue
             
@@ -119,9 +118,53 @@ def execute_transaction(user_id, amount, operation):
             
     print(" Error: Could not execute transaction. Cluster unavailable.")
 
+def execute_transfer(from_id, to_id, amount):
+    """
+    Handles Money Transfer.
+    NOTE: Currently supports Same-Shard transfers efficiently.
+    """
+    
+    shard_from = get_shard_nodes(from_id)
+    shard_to = get_shard_nodes(to_id)
+    
+    if shard_from != shard_to:
+        print(" Error: Cross-shard transfers are not supported in this version (Requires 2PC).")
+        print(" Please transfer between accounts on the same shard (e.g., 10 -> 20).")
+        return
+
+    nodes = shard_from
+    for address in nodes:
+        channel = grpc.insecure_channel(address)
+        stub = wallet_pb2_grpc.WalletServiceStub(channel)
+        try:
+            req = wallet_pb2.TransactionRequest(
+                account_id=from_id,
+                to_account=to_id,  
+                amount=amount,
+                op="TRANSFER"     
+            )
+            response = stub.ExecuteTransaction(req)
+            
+            if response.success:
+                print(f" Success: {response.message}")
+                channel.close()
+                return
+            elif "Not Leader" in response.message:
+                channel.close()
+                continue
+            else:
+                print(f" Failed: {response.message}")
+                channel.close()
+                return
+        except grpc.RpcError:
+            channel.close()
+            continue
+            
+    print(" Error: Cluster unavailable.")
+    
 def main():
     print("--- Distributed E-Wallet Client ---")
-    print("Commands: create <id> | balance <id> | deposit <id> <amt> | withdraw <id> <amt> | exit")
+    print("Commands: create <id> | balance <id> | deposit <id> <amt> | withdraw <id> <amt> | transfer <from> <to> <amt> | exit")
     
     while True:
         try:
@@ -145,6 +188,10 @@ def main():
             elif cmd[0] == "withdraw":
                 if len(cmd) < 3: print("Usage: withdraw <id> <amount>"); continue
                 execute_transaction(int(cmd[1]), float(cmd[2]), "WITHDRAW")
+                
+            elif cmd[0] == "transfer":
+                if len(cmd) < 4: print("Usage: transfer <from_id> <to_id> <amount>"); continue
+                execute_transfer(int(cmd[1]), int(cmd[2]), float(cmd[3]))
                 
             else:
                 print("Unknown command.")
