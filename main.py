@@ -6,7 +6,7 @@ import grpc
 from concurrent import futures
 
 # --- PATH CONFIGURATION ---
-# Get the absolute path to the project root
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Add 'src' to path
