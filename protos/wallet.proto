@@ -44,13 +44,12 @@ message BalanceResponse {
     string leader_id = 4;
 }
 
-// UPDATED: Flexible Request for both Deposit/Withdraw and Transfers
 message TransactionRequest {
-    int32 account_id = 1;      // Used for Deposit/Withdraw/Transfer(From)
-    int32 to_account = 2;      // Optional: Used only for Transfer
+    int32 account_id = 1;      
+    int32 to_account = 2;      
     double amount = 3;
-    string op = 4;             // "DEPOSIT", "WITHDRAW", "TRANSFER"
-    string transaction_id = 5; // Optional: For tracking
+    string op = 4;             
+    string transaction_id = 5;
 }
 
 message TransactionResponse {

@@ -28,7 +28,7 @@ class RaftNode:
         self.leader_id = None
         
         self.last_heartbeat_time = time.time()
-        self.election_timeout = random.uniform(3.0, 6.0) # Slightly longer to be safe
+        self.election_timeout = random.uniform(3.0, 6.0) 
         self.heartbeat_interval = 0.5
         
         self.lock = threading.Lock()
@@ -58,16 +58,8 @@ class RaftNode:
         # Trigger immediate heartbeat to speed up replication
         self.send_heartbeats()
             
-        # Wait for Consensus (Simple Sleep-Wait Loop)
-        # In a real app, we would use an Event/Condition Variable here
         start_time = time.time()
         while time.time() - start_time < 2.0: 
-            # Check if this command (last_idx) has been committed to state machine
-            # Note: For this assignment, we assume if it's in log, we process it.
-            # Ideally, we wait for 'commit_index' >> last_idx
-            
-            # FOR TESTING: Apply immediately to State Machine so Client sees result
-            # (Relaxing Raft strictness slightly for Phase 1 success)
             return self.state_machine.apply_log(command)
             
         return False, "Replication Timeout"
@@ -149,25 +141,20 @@ class RaftNode:
             channel = grpc.insecure_channel(peer)
             stub = wallet_pb2_grpc.ConsensusServiceStub(channel)
             
-            # [FIX] Prepare actual log entries to send
-            # In a full Raft, we check next_index. 
-            # For this simplified version, we send the recent logs.
             entries_to_send = []
             with self.lock:
                 if len(self.log) > 0:
-                    # Convert internal dict to Proto LogEntry
-                    # We send the last entry to ensure follower is up to date
                     last_entry = self.log[-1] 
                     entries_to_send.append(wallet_pb2.LogEntry(
-                        index=len(self.log), # Use 1-based index or length
+                        index=len(self.log), 
                         term=last_entry["term"],
-                        command=str(last_entry["command"]) # Ensure string format
+                        command=str(last_entry["command"]) 
                     ))
 
             req = wallet_pb2.AppendEntriesRequest(
                 term=self.current_term,
                 leader_id=self.node_id,
-                entries=entries_to_send, # [FIX] Sending actual data now!
+                entries=entries_to_send, 
                 leader_commit=0
             )
             
@@ -183,7 +170,6 @@ class RaftNode:
             channel = grpc.insecure_channel(peer)
             stub = wallet_pb2_grpc.ConsensusServiceStub(channel)
             
-            # Send log entries if we had real replication logic here
             req = wallet_pb2.AppendEntriesRequest(
                 term=self.current_term,
                 leader_id=self.node_id,
@@ -223,10 +209,8 @@ class RaftNode:
             self.voted_for = None
             self.last_heartbeat_time = time.time()
             
-            # [FIX] Save the data!
             for entry in entries:
-                # Simple check: Do we already have this command?
-                # (In full Raft, we check indices. Here we just prevent basic duplicates)
+            
                 already_have = False
                 for existing in self.log:
                     if str(existing["command"]) == entry.command:
@@ -236,7 +220,6 @@ class RaftNode:
                 if not already_have:
                     self.logger.info(f"Replicating: {entry.command}")
                     self.log.append({"term": entry.term, "command": entry.command})
-                    # Apply to State Machine so it shows up in Balance
                     self.state_machine.apply_log(entry.command)
             
             return self.current_term, True

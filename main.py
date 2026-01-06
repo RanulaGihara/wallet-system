@@ -3,28 +3,22 @@ import time
 import json
 import os
 import grpc
-from concurrent import futures
-
-# --- PATH CONFIGURATION ---
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Add 'src' to path
-sys.path.append(os.path.join(base_dir, "src"))
-
-# CRITICAL FIX: Add 'src/protos' to path so the generated code works
-sys.path.append(os.path.join(base_dir, "src", "protos"))
-
 import wallet_pb2 as wallet_pb2
 import wallet_pb2_grpc as wallet_pb2_grpc
 
+from concurrent import futures
 from src.core.raft_node import RaftNode
 from src.core.state_machine import WalletStateMachine
 from src.infrastructure.service_handlers import WalletServiceHandler
 from src.utils.logger import get_logger
 from src.infrastructure.service_handlers import ConsensusServiceHandler
 
-# ... rest of the code stays exactly the same ...
+# --- PATH CONFIGURATION ---
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(base_dir, "src"))
+sys.path.append(os.path.join(base_dir, "src", "protos"))
+
 def load_config(node_id):
     """Reads topology.json to find my IP and Peers."""
     config_path = os.path.join("config", "topology.json")
@@ -34,11 +28,9 @@ def load_config(node_id):
     with open(config_path, "r") as f:
         config = json.load(f)
     
-    # Search for my node_id in the config
     for shard_name, shard_data in config["shards"].items():
         if node_id in shard_data["nodes"]:
             my_info = shard_data["nodes"][node_id]
-            # Get list of peers (everyone else in my shard)
             peers = [
                 f"{info['host']}:{info['port']}" 
                 for nid, info in shard_data["nodes"].items() 
@@ -60,7 +52,6 @@ def serve():
         
     node_id = sys.argv[1]
     
-    # 2. Load Configuration
     try:
         config = load_config(node_id)
     except Exception as e:
@@ -71,28 +62,22 @@ def serve():
     logger.info(f"--- Starting Node {node_id} (Shard: {config['shard_id']}) ---")
     logger.info(f"Listening on {config['host']}:{config['port']}")
 
-    # 3. Initialize Core Logic
     state_machine = WalletStateMachine()
     raft_node = RaftNode(node_id, config['shard_id'], config['peers'], state_machine)
-
-    # 4. Start gRPC Server
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     
-    # Register our Services
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+
     wallet_service = WalletServiceHandler(raft_node)
     wallet_pb2_grpc.add_WalletServiceServicer_to_server(wallet_service, server)
     
     consensus_service = ConsensusServiceHandler(raft_node)
     wallet_pb2_grpc.add_ConsensusServiceServicer_to_server(consensus_service, server)
-    # ----------------------
-    
-    # Start Network
+   
     server.add_insecure_port(f"{config['host']}:{config['port']}")
     server.start()
     
     logger.info("Server started successfully.")
 
-    # 5. Keep Alive Loop
     try:
         while True:
             time.sleep(1)

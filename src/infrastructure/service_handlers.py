@@ -10,18 +10,16 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
         """
         Now correctly calls replicate_log which exists in RaftNode.
         """
-        # Formulate the command string
         command = f"CREATE {request.account_id}"
         
-        # Send to Raft Consensus
         success, msg = self.raft_node.replicate_log(command)
         
         return wallet_pb2.AccountResponse(success=success, message=str(msg))
 
     def GetBalance(self, request, context):
-        # Safer check for Leader state using string comparison
+       
         if str(self.raft_node.state.name) != "LEADER":
-            pass # In future, redirect here. For now, we allow followers to read (Eventual Consistency)
+            pass 
 
         balance = self.raft_node.state_machine.get_balance(request.account_id)
         return wallet_pb2.BalanceResponse(
@@ -31,13 +29,10 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
             leader_id=str(self.raft_node.node_id)
         )
 
-    # --- MOVED INSIDE THE CLASS & FIXED INDENTATION ---
     def ExecuteTransaction(self, request, context):
         """
         Handles Deposit and Withdraw commands.
         """
-        # [FIX] Use a simple STRING format instead of a Dictionary
-        # Format: "TRANSACTION <account_id> <amount> <op>"
         command = f"TRANSACTION {request.account_id} {request.amount} {request.op}"
         
         # Replicate to Raft Log

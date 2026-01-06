@@ -1,13 +1,11 @@
 import grpc
 import sys
 import os
-
-# Fix path to import protos
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../src/protos'))
-
 import wallet_pb2
 import wallet_pb2_grpc
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../src/protos'))
 
 # --- PARTITION RESOLUTION CONFIG ---
 SHARD_0_NODES = ["localhost:50051", "localhost:50052", "localhost:50053"]
@@ -76,7 +74,7 @@ def get_balance(acc_id):
             else:
                 print(f" Failed: Account not found.")
                 channel.close()
-                return # If account missing, don't retry others (unless eventual consistency)
+                return 
                 
         except grpc.RpcError:
             # Node is down, try next one
