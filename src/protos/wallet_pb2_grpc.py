@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from protos import wallet_pb2 as protos_dot_wallet__pb2
+import wallet_pb2 as wallet__pb2
 
 GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in protos/wallet_pb2_grpc.py depends on'
+        + ' but the generated code in wallet_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -37,18 +37,23 @@ class WalletServiceStub(object):
         """
         self.CreateAccount = channel.unary_unary(
                 '/wallet.WalletService/CreateAccount',
-                request_serializer=protos_dot_wallet__pb2.AccountRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.AccountResponse.FromString,
+                request_serializer=wallet__pb2.AccountRequest.SerializeToString,
+                response_deserializer=wallet__pb2.AccountResponse.FromString,
                 _registered_method=True)
         self.GetBalance = channel.unary_unary(
                 '/wallet.WalletService/GetBalance',
-                request_serializer=protos_dot_wallet__pb2.AccountRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.BalanceResponse.FromString,
+                request_serializer=wallet__pb2.AccountRequest.SerializeToString,
+                response_deserializer=wallet__pb2.BalanceResponse.FromString,
+                _registered_method=True)
+        self.ExecuteTransaction = channel.unary_unary(
+                '/wallet.WalletService/ExecuteTransaction',
+                request_serializer=wallet__pb2.TransactionRequest.SerializeToString,
+                response_deserializer=wallet__pb2.TransactionResponse.FromString,
                 _registered_method=True)
         self.TransferFunds = channel.unary_unary(
                 '/wallet.WalletService/TransferFunds',
-                request_serializer=protos_dot_wallet__pb2.TransactionRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.TransactionResponse.FromString,
+                request_serializer=wallet__pb2.TransactionRequest.SerializeToString,
+                response_deserializer=wallet__pb2.TransactionResponse.FromString,
                 _registered_method=True)
 
 
@@ -68,8 +73,16 @@ class WalletServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ExecuteTransaction(self, request, context):
+        """Updated: Supports Deposit/Withdraw
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def TransferFunds(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Kept for future use (Cross-Shard)
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -79,18 +92,23 @@ def add_WalletServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'CreateAccount': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateAccount,
-                    request_deserializer=protos_dot_wallet__pb2.AccountRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.AccountResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.AccountRequest.FromString,
+                    response_serializer=wallet__pb2.AccountResponse.SerializeToString,
             ),
             'GetBalance': grpc.unary_unary_rpc_method_handler(
                     servicer.GetBalance,
-                    request_deserializer=protos_dot_wallet__pb2.AccountRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.BalanceResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.AccountRequest.FromString,
+                    response_serializer=wallet__pb2.BalanceResponse.SerializeToString,
+            ),
+            'ExecuteTransaction': grpc.unary_unary_rpc_method_handler(
+                    servicer.ExecuteTransaction,
+                    request_deserializer=wallet__pb2.TransactionRequest.FromString,
+                    response_serializer=wallet__pb2.TransactionResponse.SerializeToString,
             ),
             'TransferFunds': grpc.unary_unary_rpc_method_handler(
                     servicer.TransferFunds,
-                    request_deserializer=protos_dot_wallet__pb2.TransactionRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.TransactionResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.TransactionRequest.FromString,
+                    response_serializer=wallet__pb2.TransactionResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -119,8 +137,8 @@ class WalletService(object):
             request,
             target,
             '/wallet.WalletService/CreateAccount',
-            protos_dot_wallet__pb2.AccountRequest.SerializeToString,
-            protos_dot_wallet__pb2.AccountResponse.FromString,
+            wallet__pb2.AccountRequest.SerializeToString,
+            wallet__pb2.AccountResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -146,8 +164,35 @@ class WalletService(object):
             request,
             target,
             '/wallet.WalletService/GetBalance',
-            protos_dot_wallet__pb2.AccountRequest.SerializeToString,
-            protos_dot_wallet__pb2.BalanceResponse.FromString,
+            wallet__pb2.AccountRequest.SerializeToString,
+            wallet__pb2.BalanceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ExecuteTransaction(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/wallet.WalletService/ExecuteTransaction',
+            wallet__pb2.TransactionRequest.SerializeToString,
+            wallet__pb2.TransactionResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -173,8 +218,8 @@ class WalletService(object):
             request,
             target,
             '/wallet.WalletService/TransferFunds',
-            protos_dot_wallet__pb2.TransactionRequest.SerializeToString,
-            protos_dot_wallet__pb2.TransactionResponse.FromString,
+            wallet__pb2.TransactionRequest.SerializeToString,
+            wallet__pb2.TransactionResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -198,13 +243,13 @@ class ConsensusServiceStub(object):
         """
         self.RequestVote = channel.unary_unary(
                 '/wallet.ConsensusService/RequestVote',
-                request_serializer=protos_dot_wallet__pb2.VoteRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.VoteResponse.FromString,
+                request_serializer=wallet__pb2.VoteRequest.SerializeToString,
+                response_deserializer=wallet__pb2.VoteResponse.FromString,
                 _registered_method=True)
         self.AppendEntries = channel.unary_unary(
                 '/wallet.ConsensusService/AppendEntries',
-                request_serializer=protos_dot_wallet__pb2.AppendEntriesRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.AppendEntriesResponse.FromString,
+                request_serializer=wallet__pb2.AppendEntriesRequest.SerializeToString,
+                response_deserializer=wallet__pb2.AppendEntriesResponse.FromString,
                 _registered_method=True)
 
 
@@ -229,13 +274,13 @@ def add_ConsensusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'RequestVote': grpc.unary_unary_rpc_method_handler(
                     servicer.RequestVote,
-                    request_deserializer=protos_dot_wallet__pb2.VoteRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.VoteResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.VoteRequest.FromString,
+                    response_serializer=wallet__pb2.VoteResponse.SerializeToString,
             ),
             'AppendEntries': grpc.unary_unary_rpc_method_handler(
                     servicer.AppendEntries,
-                    request_deserializer=protos_dot_wallet__pb2.AppendEntriesRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.AppendEntriesResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.AppendEntriesRequest.FromString,
+                    response_serializer=wallet__pb2.AppendEntriesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -264,8 +309,8 @@ class ConsensusService(object):
             request,
             target,
             '/wallet.ConsensusService/RequestVote',
-            protos_dot_wallet__pb2.VoteRequest.SerializeToString,
-            protos_dot_wallet__pb2.VoteResponse.FromString,
+            wallet__pb2.VoteRequest.SerializeToString,
+            wallet__pb2.VoteResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -291,8 +336,8 @@ class ConsensusService(object):
             request,
             target,
             '/wallet.ConsensusService/AppendEntries',
-            protos_dot_wallet__pb2.AppendEntriesRequest.SerializeToString,
-            protos_dot_wallet__pb2.AppendEntriesResponse.FromString,
+            wallet__pb2.AppendEntriesRequest.SerializeToString,
+            wallet__pb2.AppendEntriesResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -316,13 +361,13 @@ class ShardServiceStub(object):
         """
         self.Prepare = channel.unary_unary(
                 '/wallet.ShardService/Prepare',
-                request_serializer=protos_dot_wallet__pb2.TwoPCRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.TwoPCResponse.FromString,
+                request_serializer=wallet__pb2.TwoPCRequest.SerializeToString,
+                response_deserializer=wallet__pb2.TwoPCResponse.FromString,
                 _registered_method=True)
         self.CommitOrAbort = channel.unary_unary(
                 '/wallet.ShardService/CommitOrAbort',
-                request_serializer=protos_dot_wallet__pb2.TwoPCRequest.SerializeToString,
-                response_deserializer=protos_dot_wallet__pb2.TwoPCResponse.FromString,
+                request_serializer=wallet__pb2.TwoPCRequest.SerializeToString,
+                response_deserializer=wallet__pb2.TwoPCResponse.FromString,
                 _registered_method=True)
 
 
@@ -347,13 +392,13 @@ def add_ShardServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Prepare': grpc.unary_unary_rpc_method_handler(
                     servicer.Prepare,
-                    request_deserializer=protos_dot_wallet__pb2.TwoPCRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.TwoPCResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.TwoPCRequest.FromString,
+                    response_serializer=wallet__pb2.TwoPCResponse.SerializeToString,
             ),
             'CommitOrAbort': grpc.unary_unary_rpc_method_handler(
                     servicer.CommitOrAbort,
-                    request_deserializer=protos_dot_wallet__pb2.TwoPCRequest.FromString,
-                    response_serializer=protos_dot_wallet__pb2.TwoPCResponse.SerializeToString,
+                    request_deserializer=wallet__pb2.TwoPCRequest.FromString,
+                    response_serializer=wallet__pb2.TwoPCResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -382,8 +427,8 @@ class ShardService(object):
             request,
             target,
             '/wallet.ShardService/Prepare',
-            protos_dot_wallet__pb2.TwoPCRequest.SerializeToString,
-            protos_dot_wallet__pb2.TwoPCResponse.FromString,
+            wallet__pb2.TwoPCRequest.SerializeToString,
+            wallet__pb2.TwoPCResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -409,8 +454,8 @@ class ShardService(object):
             request,
             target,
             '/wallet.ShardService/CommitOrAbort',
-            protos_dot_wallet__pb2.TwoPCRequest.SerializeToString,
-            protos_dot_wallet__pb2.TwoPCResponse.FromString,
+            wallet__pb2.TwoPCRequest.SerializeToString,
+            wallet__pb2.TwoPCResponse.FromString,
             options,
             channel_credentials,
             insecure,

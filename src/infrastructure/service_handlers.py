@@ -19,8 +19,7 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
         return wallet_pb2.AccountResponse(success=success, message=str(msg))
 
     def GetBalance(self, request, context):
-        # FIX: Safer check for Leader state using string comparison
-        # This avoids importing NodeState enum and circular dependency issues
+        # Safer check for Leader state using string comparison
         if str(self.raft_node.state.name) != "LEADER":
             pass # In future, redirect here. For now, we allow followers to read (Eventual Consistency)
 
@@ -31,6 +30,21 @@ class WalletServiceHandler(wallet_pb2_grpc.WalletServiceServicer):
             success=True,
             leader_id=str(self.raft_node.node_id)
         )
+
+    # --- MOVED INSIDE THE CLASS & FIXED INDENTATION ---
+    def ExecuteTransaction(self, request, context):
+        """
+        Handles Deposit and Withdraw commands.
+        """
+        # [FIX] Use a simple STRING format instead of a Dictionary
+        # Format: "TRANSACTION <account_id> <amount> <op>"
+        command = f"TRANSACTION {request.account_id} {request.amount} {request.op}"
+        
+        # Replicate to Raft Log
+        success, msg = self.raft_node.replicate_log(command)
+        
+        return wallet_pb2.TransactionResponse(success=success, message=str(msg))
+
 
 class ConsensusServiceHandler(wallet_pb2_grpc.ConsensusServiceServicer):
     def __init__(self, raft_node):

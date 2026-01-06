@@ -6,6 +6,11 @@ package wallet;
 service WalletService {
     rpc CreateAccount (AccountRequest) returns (AccountResponse);
     rpc GetBalance (AccountRequest) returns (BalanceResponse);
+    
+    // Updated: Supports Deposit/Withdraw
+    rpc ExecuteTransaction (TransactionRequest) returns (TransactionResponse);
+    
+    // Kept for future use (Cross-Shard)
     rpc TransferFunds (TransactionRequest) returns (TransactionResponse);
 }
 
@@ -36,14 +41,16 @@ message BalanceResponse {
     int32 account_id = 1;
     double balance = 2;
     bool success = 3;
-    string leader_id = 4; // To help Client find the Leader
+    string leader_id = 4;
 }
 
+// UPDATED: Flexible Request for both Deposit/Withdraw and Transfers
 message TransactionRequest {
-    int32 from_account = 1;
-    int32 to_account = 2;
+    int32 account_id = 1;      // Used for Deposit/Withdraw/Transfer(From)
+    int32 to_account = 2;      // Optional: Used only for Transfer
     double amount = 3;
-    string transaction_id = 4;
+    string op = 4;             // "DEPOSIT", "WITHDRAW", "TRANSFER"
+    string transaction_id = 5; // Optional: For tracking
 }
 
 message TransactionResponse {
@@ -51,6 +58,7 @@ message TransactionResponse {
     string message = 2;
 }
 
+// Raft Messages
 message VoteRequest {
     int32 term = 1;
     string candidate_id = 2;
@@ -83,11 +91,12 @@ message AppendEntriesResponse {
     bool success = 2;
 }
 
+// 2PC Messages
 message TwoPCRequest {
     string transaction_id = 1;
     int32 account_id = 2;
     double amount = 3;
-    string action = 4; // "PREPARE", "COMMIT", "ABORT"
+    string action = 4; 
 }
 
 message TwoPCResponse {

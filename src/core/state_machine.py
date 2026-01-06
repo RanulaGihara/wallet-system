@@ -20,6 +20,47 @@ class WalletStateMachine:
 
     def apply_log(self, command):
         """
+        Executes a command.
+        """
+        with self.lock:
+            try:
+                parts = command.split()
+                op = parts[0]
+                
+                # 1. Handle CREATE
+                if op == "CREATE":
+                    acc_id = int(parts[1])
+                    if acc_id in self.accounts:
+                        return False, "Account already exists"
+                    self.accounts[acc_id] = 0.0
+                    return True, "Account created"
+                
+                # 2. Handle TRANSACTION (The new simple format)
+                elif op == "TRANSACTION":
+                    # Format: TRANSACTION <user_id> <amount> <op>
+                    user_id = int(parts[1])
+                    amount = float(parts[2])
+                    operation = parts[3]
+                    
+                    if user_id not in self.accounts:
+                        return False, "User does not exist"
+                    
+                    if operation == "DEPOSIT":
+                        self.accounts[user_id] += amount
+                        return True, f"Deposited {amount}"
+                    
+                    elif operation == "WITHDRAW":
+                        if self.accounts[user_id] >= amount:
+                            self.accounts[user_id] -= amount
+                            return True, f"Withdrew {amount}"
+                        else:
+                            return False, "Insufficient funds"
+
+                return False, "Unknown Command"
+                
+            except Exception as e:
+                return False, f"Execution Error: {str(e)}"
+        """
         Executes a command committed by Raft.
         Handles both STRING commands (Simple) and DICT commands (Complex).
         """

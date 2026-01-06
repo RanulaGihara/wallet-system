@@ -149,6 +149,40 @@ class RaftNode:
             channel = grpc.insecure_channel(peer)
             stub = wallet_pb2_grpc.ConsensusServiceStub(channel)
             
+            # [FIX] Prepare actual log entries to send
+            # In a full Raft, we check next_index. 
+            # For this simplified version, we send the recent logs.
+            entries_to_send = []
+            with self.lock:
+                if len(self.log) > 0:
+                    # Convert internal dict to Proto LogEntry
+                    # We send the last entry to ensure follower is up to date
+                    last_entry = self.log[-1] 
+                    entries_to_send.append(wallet_pb2.LogEntry(
+                        index=len(self.log), # Use 1-based index or length
+                        term=last_entry["term"],
+                        command=str(last_entry["command"]) # Ensure string format
+                    ))
+
+            req = wallet_pb2.AppendEntriesRequest(
+                term=self.current_term,
+                leader_id=self.node_id,
+                entries=entries_to_send, # [FIX] Sending actual data now!
+                leader_commit=0
+            )
+            
+            resp = stub.AppendEntries(req, timeout=0.2)
+            
+            with self.lock:
+                if resp.term > self.current_term:
+                    self.step_down(resp.term)
+                    
+        except Exception:
+            pass
+        try:
+            channel = grpc.insecure_channel(peer)
+            stub = wallet_pb2_grpc.ConsensusServiceStub(channel)
+            
             # Send log entries if we had real replication logic here
             req = wallet_pb2.AppendEntriesRequest(
                 term=self.current_term,
@@ -179,6 +213,33 @@ class RaftNode:
             return self.current_term, False
 
     def handle_heartbeat(self, term, leader_id, entries, leader_commit):
+        with self.lock:
+            if term < self.current_term:
+                return self.current_term, False
+            
+            self.current_term = term
+            self.leader_id = leader_id
+            self.state = NodeState.FOLLOWER
+            self.voted_for = None
+            self.last_heartbeat_time = time.time()
+            
+            # [FIX] Save the data!
+            for entry in entries:
+                # Simple check: Do we already have this command?
+                # (In full Raft, we check indices. Here we just prevent basic duplicates)
+                already_have = False
+                for existing in self.log:
+                    if str(existing["command"]) == entry.command:
+                        already_have = True
+                        break
+                
+                if not already_have:
+                    self.logger.info(f"Replicating: {entry.command}")
+                    self.log.append({"term": entry.term, "command": entry.command})
+                    # Apply to State Machine so it shows up in Balance
+                    self.state_machine.apply_log(entry.command)
+            
+            return self.current_term, True
         with self.lock:
             if term < self.current_term:
                 return self.current_term, False
