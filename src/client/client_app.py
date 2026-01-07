@@ -2,7 +2,6 @@ import grpc
 import sys
 import os
 
-# Fix path to import protos
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src/protos'))
 

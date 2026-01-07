@@ -2,7 +2,7 @@ import threading
 
 class WalletStateMachine:
     def __init__(self):
-        # In-memory database: {account_id (int): balance (float)}
+        # In-memory database
         self.accounts = {}
         self.lock = threading.Lock()
         
